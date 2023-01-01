@@ -91,7 +91,7 @@ void usage(const char *program)
    fprintf(stderr, "\nACTION (Required):\n");
    fprintf(stderr, "    get:           get a value\n");
    fprintf(stderr, "    set:           set a value\n");
-   fprintf(stderr, "    help:           display usage\n");
+   fprintf(stderr, "    help:          display usage\n");
    fprintf(stderr, "\nTARGET (Required):\n");
    fprintf(stderr, "    brightness:    get/set brightness\n");
    fprintf(stderr, "    contrast:      get/set contrast\n");
