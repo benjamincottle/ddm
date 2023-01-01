@@ -25,7 +25,53 @@
 uint16_t m_action;
 uint16_t m_target;
 uint16_t m_value;
+int m_change = 0;
 
+
+/******************************************************************************
+function:	get_value
+parameter: DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_target
+******************************************************************************/
+uint16_t get_value(DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_target)
+{
+   DDCA_Status ddcrc0;
+   DDCA_Non_Table_Vcp_Value valrec;
+   ddcrc0 = ddca_get_non_table_vcp_value(
+       dh,
+       m_target,
+       &valrec);
+   if (ddcrc0 != 0)
+   {
+      DDC_ERRMSG("ddca_get_non_table_vcp_value", ddcrc0);
+      return -1;
+   }
+   return valrec.sh << 8 | valrec.sl;
+}
+
+/******************************************************************************
+function:	set_value
+parameter: DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_target, uint16_t m_value
+******************************************************************************/
+DDCA_Status set_value(DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_target, uint16_t m_value)
+{
+   uint8_t hi_byte = m_value >> 8;
+   uint8_t lo_byte = m_value & 0xff;
+   DDCA_Status ddcrc = ddca_set_non_table_vcp_value(dh, m_target, hi_byte, lo_byte);
+   if (ddcrc == DDCRC_VERIFY)
+   {
+      fprintf(stderr, "ERROR: Value verification failed.\n");
+   }
+   else if (ddcrc != 0)
+   {
+      DDC_ERRMSG("ddca_set_non_table_vcp_value", ddcrc);
+   }
+   return ddcrc;
+}
+
+/******************************************************************************
+function:	shift_args
+parameter: int *argc, char ***argv
+******************************************************************************/
 static char *shift_args(int *argc, char ***argv)
 {
    assert(*argc > 0);
@@ -35,23 +81,34 @@ static char *shift_args(int *argc, char ***argv)
    return result;
 }
 
+/******************************************************************************
+function:	usage
+parameter: const char *program
+******************************************************************************/
 void usage(const char *program)
 {
-   fprintf(stderr, "Usage: %s <ACTION> <TARGET> [PERCENTAGE]\n", program);
+   fprintf(stderr, "Usage: %s <ACTION> <TARGET> [PERCENTAGE][+-]\n", program);
    fprintf(stderr, "\nACTION (Required):\n");
    fprintf(stderr, "    get:           get a value\n");
    fprintf(stderr, "    set:           set a value\n");
+   fprintf(stderr, "    help:           display usage\n");
    fprintf(stderr, "\nTARGET (Required):\n");
    fprintf(stderr, "    brightness:    get/set brightness\n");
    fprintf(stderr, "    contrast:      get/set contrast\n");
    fprintf(stderr, "    volume:        get/set volume\n");
-   fprintf(stderr, "\nPERCENTAGE (Required for set ACTION):\n");
-   fprintf(stderr, "    0 .. 100\n");
+   fprintf(stderr, "\nPERCENTAGE (Required for `set` ACTION):\n");
+   fprintf(stderr, "    0 .. 100[+-]   optional trailing `+` or `-` indicates\n");
+   fprintf(stderr, "                   an incremental change");
    fprintf(stderr, "\nExamples:\n");
    fprintf(stderr, "    $ %s get brightness\n", program);
    fprintf(stderr, "    $ %s set contrast 60\n", program);
+   fprintf(stderr, "    $ %s set volume 10+\n", program);
 }
 
+/******************************************************************************
+function:	main
+parameter: int argc, char **argv
+******************************************************************************/
 int main(int argc, char **argv)
 {
    const char *program = shift_args(&argc, &argv);
@@ -69,7 +126,7 @@ int main(int argc, char **argv)
          m_action = GET;
          if (argc <= 0)
          {
-            fprintf(stderr, "ERROR: no target is provided for `%s` action\n", action);
+            fprintf(stderr, "ERROR: no target is provided for action `%s`\n", action);
             return 1;
          }
       }
@@ -78,48 +135,43 @@ int main(int argc, char **argv)
          m_action = SET;
          if (argc <= 0)
          {
-            fprintf(stderr, "ERROR: no target is provided for `%s` action\n", action);
+            fprintf(stderr, "ERROR: no target is provided for action `%s`\n", action);
             return 1;
          }
       }
-      else
+      else if (strcmp(action, "help") == 0)
       {
          usage(program);
-         exit(0);
+         return 0;
       }
-
+      else
+      {
+         fprintf(stderr, "ERROR: unrecognised action `%s`\n", action);
+         return 1;
+      }
       const char *target = shift_args(&argc, &argv);
       if (strcmp(target, "brightness") == 0)
       {
          m_target = BRIGHTNESS;
-         if ((argc <= 0) && (m_action == SET))
-         {
-            fprintf(stderr, "ERROR: no value is provided for `%s` target\n", target);
-            return 1;
-         }
       }
       else if (strcmp(target, "contrast") == 0)
       {
          m_target = CONTRAST;
-         if ((argc <= 0) && (m_action == SET))
-         {
-            fprintf(stderr, "ERROR: no value is provided for `%s` target\n", target);
-            return 1;
-         }
       }
       else if (strcmp(target, "volume") == 0)
       {
          m_target = VOLUME;
-         if ((argc <= 0) && (m_action == SET))
-         {
-            fprintf(stderr, "ERROR: no value is provided for `%s` target\n", target);
-            return 1;
-         }
-      }      
+      }
       else
       {
-         usage(program);
-         exit(0);
+         fprintf(stderr, "ERROR: unrecognised target `%s`\n", target);
+         return 1;         
+      }
+
+      if ((argc <= 0) && (m_action == SET))
+      {
+         fprintf(stderr, "ERROR: no value is provided for target `%s`\n", target);
+         return 1;
       }
 
       if (m_action == SET)
@@ -130,19 +182,31 @@ int main(int argc, char **argv)
          char *end;
 
          lnum = strtol(value, &end, 10); // 10 specifies base-10
+
          if (end == value)
          { // if no characters were converted these pointers are equal
-            fprintf(stderr, "ERROR: error parsing value for `%s` target\n", target);
+            fprintf(stderr, "ERROR: invalid value `%s`\n", value);
             return 1;
          }
+
+         if (strcmp(end, "+") == 0)
+         {
+            m_change = 1;
+         }
+         else if (strcmp(end, "-") == 0)
+         {
+            m_change = -1;
+         }
+
          if ((lnum < 0) || (lnum > 100))
          {
-            fprintf(stderr, "ERROR: value out of range for `%s` target\n", target);
+            fprintf(stderr, "ERROR: value `%ld` out of range\n", lnum);
             return 1;
          }
          m_value = (uint16_t)lnum;
       }
    }
+
    DDCA_Status ok = 0;
    DDCA_Status rc;
    DDCA_Display_Ref dref;
@@ -162,52 +226,49 @@ int main(int argc, char **argv)
       if (rc != 0)
       {
          DDC_ERRMSG("ddca_open_display", rc);
-         ok = rc;
          continue;
       }
       if (m_action == GET)
       {
-         DDCA_Status ddcrc0;
-         DDCA_Non_Table_Vcp_Value valrec;
-         ddcrc0 = ddca_get_non_table_vcp_value(
-             dh,
-             m_target,
-             &valrec);
-         if (ddcrc0 != 0)
+         uint16_t cur_val = get_value(dh, m_target);
+         if (!(cur_val < 0))
          {
-            DDC_ERRMSG("ddca_get_non_table_vcp_value", ddcrc0);
-            ok = ddcrc0;
-            continue;
+            fprintf(stdout, "%d\n", cur_val);
          }
-         uint16_t cur_val = valrec.sh << 8 | valrec.sl;
-         fprintf(stdout, "%d\n", cur_val);
       }
       else if (m_action == SET)
       {
-         uint8_t hi_byte = m_value >> 8;
-         uint8_t lo_byte = m_value & 0xff;
-         DDCA_Status ddcrc1 = ddca_set_non_table_vcp_value(dh, m_target, hi_byte, lo_byte);
-         if (ddcrc1 == DDCRC_VERIFY)
+         if (!m_change)
          {
-            fprintf(stderr, "ERROR: Value verification failed.\n");
-            ok = ddcrc1;
-            continue;
+            ok = set_value(dh, m_target, m_value);
          }
-         else if (ddcrc1 != 0)
+         else
          {
-            DDC_ERRMSG("ddca_set_non_table_vcp_value", ddcrc1);
-            ok = ddcrc1;
-            continue;
+            uint16_t cur_val = get_value(dh, m_target);
+            if (!(cur_val < 0))
+            {
+               int testval = (int)cur_val + (m_change * m_value);
+               if (testval < 0 || testval > 100)
+               {
+                  fprintf(stderr, "ERROR: value `%d` is out of range, current value is `%d`\n", testval, cur_val);
+                  ok = 1;
+               }
+               else
+               {
+                  m_value = testval;
+                  ok = set_value(dh, m_target, m_value);
+               }
+            }
          }
       }
 
       rc = ddca_close_display(dh);
-      if (rc != 0) {
+      if (rc != 0)
+      {
          DDC_ERRMSG("ddca_close_display", rc);
-         ok = rc;
       }
       dh = NULL;
    }
    ddca_free_display_info_list(dlist);
-   return ok;
+   return (rc || ok);
 }
