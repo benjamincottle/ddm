@@ -212,7 +212,7 @@ int main(int argc, char **argv)
    DDCA_Display_Ref dref;
    DDCA_Display_Handle dh = NULL; // initialize to avoid clang analyzer warning
 
-   int MAX_DISPLAYS = 4; // limit the number of displays
+   int MAX_DISPLAYS = 1; // limit the number of displays
 
    DDCA_Display_Info_List *dlist = NULL;
    ddca_get_display_info_list2(
