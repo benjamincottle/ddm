@@ -146,7 +146,7 @@ int main(int argc, char **argv)
       }
       else
       {
-         fprintf(stderr, "ERROR: unrecognised action `%s`\n", action);
+         fprintf(stderr, "ERROR: unrecognised argument `%s`\n", action);
          return 1;
       }
       const char *target = shift_args(&argc, &argv);
