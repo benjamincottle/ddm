@@ -13,6 +13,7 @@
 #define BRIGHTNESS 0x10
 #define CONTRAST 0x12
 #define VOLUME 0x62
+#define ALL_TARGETS 0x33
 
 #define DDC_ERRMSG(function_name, status_code)     \
    do                                              \
@@ -168,13 +169,21 @@ int main(int argc, char **argv)
       lnum = strtol(target_or_feature, &end, 10); // 10 specifies base-10
       if (!(end == target_or_feature))
       { // if at least one character was converted these pointers are unequal
-         if ((lnum < 1) || (lnum > 100))
+         if ((lnum < 1) || (lnum > 32))
          {
             fprintf(stderr, "ERROR: target `%ld` out of range\n", lnum);
             return 1;
          }
          m_target = (uint16_t)lnum;
          target_or_feature = shift_args(&argc, &argv);
+      }
+      else
+      {
+         if (strcmp(target_or_feature, "all") == 0)
+         {
+            m_target = ALL_TARGETS;
+            target_or_feature = shift_args(&argc, &argv);
+         }
       }
 
       if (strcmp(target_or_feature, "brightness") == 0)
@@ -239,10 +248,6 @@ int main(int argc, char **argv)
       }
    }
 
-   // fprintf(stdout, "DEBUG: m_action: %d, m_feature: %d, m_target %d, m_value: %d, m_change: %d\n", m_action, m_feature, m_target, m_value, m_change);
-   
-
-   int MAX_DISPLAYS = 1;
    DDCA_Status ok = 0;
    DDCA_Status rc;
    DDCA_Display_Ref dref;
@@ -256,8 +261,6 @@ int main(int argc, char **argv)
       fprintf(stderr, "ERROR: No valid display detected\n");
       return 1;
    }
-
-   // can assume at least one valid display from here
 
    if (m_action == LIST)
    {
@@ -273,7 +276,16 @@ int main(int argc, char **argv)
       return 0;
    }
 
-   for (int ndx = 0; ndx < dlist->ct && ndx < MAX_DISPLAYS; ndx++)
+   int lb = 0;
+   int ub = dlist->ct;
+
+   if (!(m_target == ALL_TARGETS))
+   {
+      lb = m_target - 1;
+      ub = m_target;
+   }
+
+   for (int ndx = lb; ndx < ub; ndx++)
    {
       DDCA_Display_Info *dinfo = &dlist->info[ndx];
       dref = dinfo->dref;
