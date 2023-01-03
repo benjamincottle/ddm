@@ -15,15 +15,6 @@
 #define VOLUME 0x62
 #define ALL_TARGETS 0x33
 
-#define DDC_ERRMSG(function_name, status_code)     \
-   do                                              \
-   {                                               \
-      printf("(%s) %s() returned %d (%s): %s\n",   \
-             __func__, function_name, status_code, \
-             ddca_rc_name(status_code),            \
-             ddca_rc_desc(status_code));           \
-   } while (0)
-
 uint16_t m_action;
 uint16_t m_feature;
 uint16_t m_target = 1; // defaults to Display 1
@@ -44,7 +35,7 @@ uint16_t get_value(DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_feature)
        &valrec);
    if (ddcrc0 != 0)
    {
-      DDC_ERRMSG("ddca_get_non_table_vcp_value", ddcrc0);
+      fprintf(stderr, "ERROR: unable to get vcp value\n");
       return -1;
    }
    return valrec.sh << 8 | valrec.sl;
@@ -65,7 +56,7 @@ DDCA_Status set_value(DDCA_Display_Handle dh, DDCA_Vcp_Feature_Code m_feature, u
    }
    else if (ddcrc != 0)
    {
-      DDC_ERRMSG("ddca_set_non_table_vcp_value", ddcrc);
+      fprintf(stderr, "ERROR: unable to set vcp value\n");
    }
    return ddcrc;
 }
@@ -292,7 +283,7 @@ int main(int argc, char **argv)
       rc = ddca_open_display2(dref, false, &dh);
       if (rc != 0)
       {
-         DDC_ERRMSG("ddca_open_display", rc);
+         fprintf(stderr, "ERROR: unable to open display `%d`\n", ndx + 1);
          continue;
       }
       if (m_action == GET)
@@ -332,7 +323,7 @@ int main(int argc, char **argv)
       rc = ddca_close_display(dh);
       if (rc != 0)
       {
-         DDC_ERRMSG("ddca_close_display", rc);
+         fprintf(stderr, "ERROR: unable to close display `%d`\n", ndx + 1);
       }
       dh = NULL;
    }
