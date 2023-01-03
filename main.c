@@ -80,27 +80,27 @@ parameter: const char *program
 ******************************************************************************/
 void usage(const char *program)
 {
-   fprintf(stderr, "Usage: %s <ACTION> [TARGET] [FEATURE] [VALUE][+-]\n", program);
-   fprintf(stderr, "\nACTION (Required):\n");
-   fprintf(stderr, "    get:           get a value\n");
-   fprintf(stderr, "    set:           set a value\n");
-   fprintf(stderr, "    list:          list valid displays\n");
-   fprintf(stderr, "    help:          display program usage\n");
-   fprintf(stderr, "\nTARGET (Optional display number, defaults to first valid display):\n");
-   fprintf(stderr, "    1 .. N         display number reported by `list` ACTION\n");
-   fprintf(stderr, "    all            perform ACTION FEATURE for all valid displays\n");
-   fprintf(stderr, "\nFEATURE (Required for `get` and `set` ACTION):\n");
-   fprintf(stderr, "    brightness:    get/set brightness\n");
-   fprintf(stderr, "    contrast:      get/set contrast\n");
-   fprintf(stderr, "    volume:        get/set volume\n");
-   fprintf(stderr, "\nVALUE (Required for `set` ACTION):\n");
-   fprintf(stderr, "    0 .. 100[+-]   optional trailing `+` or `-` indicates\n");
-   fprintf(stderr, "                   an incremental change");
-   fprintf(stderr, "\nExamples:\n");
-   fprintf(stderr, "    $ %s list\n", program);
-   fprintf(stderr, "    $ %s get all brightness\n", program);
-   fprintf(stderr, "    $ %s set 1 contrast 60\n", program);
-   fprintf(stderr, "    $ %s set volume 10+\n", program);
+   fprintf(stdout, "Usage: %s <ACTION> [TARGET] [FEATURE] [VALUE][+-]\n", program);
+   fprintf(stdout, "\nACTION (Required):\n");
+   fprintf(stdout, "    get:           get a value\n");
+   fprintf(stdout, "    set:           set a value\n");
+   fprintf(stdout, "    list:          list valid displays\n");
+   fprintf(stdout, "    help:          display program usage\n");
+   fprintf(stdout, "\nTARGET (Optional display number, defaults to first valid display):\n");
+   fprintf(stdout, "    1 .. N         display number reported by `list` ACTION\n");
+   fprintf(stdout, "    all            perform ACTION FEATURE for all valid displays\n");
+   fprintf(stdout, "\nFEATURE (Required for `get` and `set` ACTION):\n");
+   fprintf(stdout, "    brightness:    get/set brightness\n");
+   fprintf(stdout, "    contrast:      get/set contrast\n");
+   fprintf(stdout, "    volume:        get/set volume\n");
+   fprintf(stdout, "\nVALUE (Required for `set` ACTION):\n");
+   fprintf(stdout, "    0 .. 100[+-]   optional trailing `+` or `-` indicates\n");
+   fprintf(stdout, "                   an incremental change");
+   fprintf(stdout, "\nExamples:\n");
+   fprintf(stdout, "    $ %s list\n", program);
+   fprintf(stdout, "    $ %s get all brightness\n", program);
+   fprintf(stdout, "    $ %s set 1 contrast 60\n", program);
+   fprintf(stdout, "    $ %s set volume 10+\n", program);
 }
 
 /******************************************************************************
@@ -109,14 +109,15 @@ parameter: int argc, char **argv
 ******************************************************************************/
 int main(int argc, char **argv)
 {
+   const char *program = shift_args(&argc, &argv);
+   if (argc <= 0)
+   {
+      fprintf(stderr, "ERROR: no arguments provided, see %s help\n", program);
+      return 1;
+   }
+
    while (argc > 0)
    {
-      const char *program = shift_args(&argc, &argv);
-      if (argc <= 0)
-      {
-         fprintf(stderr, "ERROR: no arguments provided\n");
-         return 1;
-      }
       const char *action = shift_args(&argc, &argv);
       if (strcmp(action, "list") == 0)
       {
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
          m_action = GET;
          if (argc <= 0)
          {
-            fprintf(stderr, "ERROR: no feature is provided for action `%s`\n", action);
+            fprintf(stderr, "ERROR: no feature is provided for action `%s`, see %s help\n", action, program);
             return 1;
          }
       }
@@ -137,7 +138,7 @@ int main(int argc, char **argv)
          m_action = SET;
          if (argc <= 0)
          {
-            fprintf(stderr, "ERROR: no feature is provided for action `%s`\n", action);
+            fprintf(stderr, "ERROR: no feature is provided for action `%s`, see %s help\n", action, program);
             return 1;
          }
       }
@@ -148,7 +149,7 @@ int main(int argc, char **argv)
       }
       else
       {
-         fprintf(stderr, "ERROR: unrecognised action `%s`\n", action);
+         fprintf(stderr, "ERROR: unrecognised action `%s`, see %s help\n", action, program);
          return 1;
       }
 
@@ -162,7 +163,7 @@ int main(int argc, char **argv)
       { // if at least one character was converted these pointers are unequal
          if ((lnum < 1) || (lnum > 32))
          {
-            fprintf(stderr, "ERROR: target `%ld` out of range\n", lnum);
+            fprintf(stderr, "ERROR: target `%ld` out of range, see %s help\n", lnum, program);
             return 1;
          }
          m_target = (uint16_t)lnum;
@@ -191,7 +192,7 @@ int main(int argc, char **argv)
       }
       else
       {
-         fprintf(stderr, "ERROR: unrecognised feature `%s`\n", target_or_feature);
+         fprintf(stderr, "ERROR: unrecognised feature `%s`, see %s help\n", target_or_feature, program);
          return 1;
       }
 
@@ -202,7 +203,7 @@ int main(int argc, char **argv)
 
       if ((argc <= 0) && (m_action == SET))
       {
-         fprintf(stderr, "ERROR: no value is provided for feature `%s`\n", target_or_feature);
+         fprintf(stderr, "ERROR: no value is provided for feature `%s`, see %s help\n", target_or_feature, program);
          return 1;
       }
 
@@ -217,7 +218,7 @@ int main(int argc, char **argv)
 
          if (end == value)
          { // if no characters were converted these pointers are equal
-            fprintf(stderr, "ERROR: invalid value `%s`\n", value);
+            fprintf(stderr, "ERROR: invalid value `%s`, see %s help\n", value, program);
             return 1;
          }
 
@@ -232,7 +233,7 @@ int main(int argc, char **argv)
 
          if ((lnum < 0) || (lnum > 100))
          {
-            fprintf(stderr, "ERROR: value `%ld` out of range\n", lnum);
+            fprintf(stderr, "ERROR: value `%ld` out of range, see %s help\n", lnum, program);
             return 1;
          }
          m_value = (uint16_t)lnum;
@@ -283,7 +284,7 @@ int main(int argc, char **argv)
       rc = ddca_open_display2(dref, false, &dh);
       if (rc != 0)
       {
-         fprintf(stderr, "ERROR: unable to open display `%d`\n", ndx + 1);
+         fprintf(stderr, "ERROR: unable to open display `%d`, verify target with %s list\n", ndx + 1, program);
          continue;
       }
       if (m_action == GET)
@@ -306,16 +307,19 @@ int main(int argc, char **argv)
             if (!(cur_val < 0))
             {
                int testval = (int)cur_val + (m_change * m_value);
-               if (testval < 0 || testval > 100)
+               if (testval < 0)
                {
-                  fprintf(stderr, "ERROR: value `%d` is out of range, current value is `%d`\n", testval, cur_val);
-                  ok = 1;
+                  m_value = 0;
+               }
+               else if (testval > 100)
+               {
+                  m_value = 100;
                }
                else
                {
                   m_value = testval;
-                  ok = set_value(dh, m_feature, m_value);
                }
+               ok = set_value(dh, m_feature, m_value);
             }
          }
       }
